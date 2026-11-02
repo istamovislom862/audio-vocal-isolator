@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="uz" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Vocal & Voice Isolator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ── Custom styles ───────────────────────────────────────────── */
+    body {
+      background: #0a0a0f;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .drag-over {
+      border-color: #6366f1 !important;
+      background: rgba(99, 102, 241, 0.08) !important;
+    }
+
+    /* Animated gradient background blobs */
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob-1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; animation: float 20s ease-in-out infinite; }
+    .blob-2 { width: 400px; height: 400px; background: #a855f7; bottom: -50px; right: -100px; animation: float 25s ease-in-out infinite reverse; }
+    .blob-3 { width: 300px; height: 300px; background: #06b6d4; top: 50%; left: 50%; animation: float 18s ease-in-out infinite; }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -50px) scale(1.1); }
+      66% { transform: translate(-20px, 30px) scale(0.9); }
+    }
+
+    /* Audio player accent */
+    audio::-webkit-media-controls-panel {
+      background: rgba(30, 30, 50, 0.8);
+      border-radius: 12px;
+    }
+
+    /* Progress bar pulse */
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .glass-card {
+      background: rgba(17, 17, 30, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-gray-200 antialiased">
+
+  <!-- Blobs -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Main container -->
+  <div class="relative z-10 max-w-3xl mx-auto px-4 py-12 sm:py-20">
+
+    <!-- Header -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-emerald-300 text-sm font-medium">⚡ GPU Tezlashtirish (Apple Silicon MPS) Faol</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-3 tracking-tight">
+        Audio <span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Isolator</span>
+      </h1>
+      <p class="text-gray-400 text-lg max-w-md mx-auto">
+        Audiongizdagi ovozni musiqadan ajrating. AI yordamida. Bepul.
+      </p>
+    </header>
+
+    <!-- ─── Drop Zone ───────────────────────────────────────────── -->
+    <div id="drop-zone"
+         class="glass-card border-2 border-dashed border-gray-700 rounded-2xl p-10 text-center cursor-pointer
+                hover:border-indigo-500/50 transition-all duration-300 group">
+      <div class="flex flex-col items-center gap-4">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center
+                    group-hover:bg-indigo-500/20 transition-colors">
+          <svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-white font-semibold text-lg mb-1">Audio faylni shu yerga tashlang</p>
+          <p class="text-gray-500 text-sm">yoki</p>
+        </div>
+        <button id="browse-btn"
+                class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium
+                       hover:shadow-lg hover:shadow-indigo-500/25 hover:scale-105 transition-all duration-200">
+          Faylni tanlang
+        </button>
+        <p class="text-gray-600 text-xs mt-1">MP3, WAV, OGG, M4A &bull; Max 200MB</p>
+      </div>
+      <input type="file" id="file-input" accept=".mp3,.wav,.ogg,.m4a" class="hidden" />
+    </div>
+
+    <!-- ─── File Info ───────────────────────────────────────────── -->
+    <div id="file-info" class="hidden mt-4 glass-card rounded-xl px-5 py-3 border border-gray-700/50 flex items-center gap-3">
+      <svg class="w-5 h-5 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+      </svg>
+      <span id="file-name" class="text-gray-300 text-sm truncate"></span>
+      <span class="text-gray-600 text-sm ml-auto flex-shrink-0" id="file-size"></span>
+    </div>
+
+    <!-- ─── Status Section ──────────────────────────────────────── -->
+    <div id="status-section" class="hidden mt-8">
+      <div class="glass-card rounded-2xl p-8 border border-gray-700/50 text-center">
+        <!-- Spinner -->
+        <div class="flex justify-center mb-5">
+          <div class="relative w-16 h-16">
+            <div class="absolute inset-0 rounded-full border-4 border-gray-700"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+          </div>
+        </div>
+        <p id="status-text" class="text-white font-semibold text-lg mb-2">Yuklanmoqda…</p>
+
+        <!-- ETA & Percentage details -->
+        <div class="flex items-center justify-between text-sm mb-2 px-1">
+          <span class="inline-flex items-center gap-1.5 text-indigo-300 font-medium bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Qolgan vaqt: <strong id="eta-value" class="text-white font-semibold">Hisoblanmoqda...</strong></span>
+          </span>
+          <span id="progress-percent" class="text-indigo-400 font-bold text-base">0%</span>
+        </div>
+
+        <div id="progress-bar" class="w-full bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+          <div id="progress-fill"
+               class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out"
+               style="width: 0%"></div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">⚡ Apple Silicon GPU (MPS) tezlashtiruvchisi ishlamoqda</p>
+      </div>
+    </div>
+
+    <!-- ─── Error Section ───────────────────────────────────────── -->
+    <div id="error-section" class="hidden mt-8">
+      <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 flex items-start gap-4">
+        <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-red-300 font-semibold mb-1">Xatolik yuz berdi</p>
+          <p id="error-text" class="text-red-400/80 text-sm"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Results Section ─────────────────────────────────────── -->
+    <div id="results-section" class="hidden mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-white">Natijalar</h2>
+        <button id="new-upload-btn"
+                class="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium
+                       hover:bg-gray-700 hover:text-white transition-all duration-200">
+          ↻ Yangi audio
+        </button>
+      </div>
+      <div id="players-container" class="space-y-4"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-16 text-center text-gray-600 text-xs">
+      <p>Powered by <a href="https://github.com/facebookresearch/demucs" target="_blank" class="text-indigo-400/60 hover:text-indigo-400">Meta Demucs</a> &bull; FastAPI</p>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
